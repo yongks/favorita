@@ -1,0 +1,616 @@
+---
+title: "Favorita"
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    source_code: embed
+---
+
+
+<style>
+.colored_grey {
+  background-color: #DDDDDD;
+}
+.colored_maroon {
+  background-color: #800000;
+}
+.colored_aqua {
+  background-color: 800000;
+}
+</style>
+
+```{r global, include=FALSE}
+# load data in 'global' chunk so it can be shared
+#  by all users of the dashboard
+###
+library(flexdashboard)
+library(shiny)
+library(ggplot2)     # graphing
+library(dplyr)       # data summarization and manipulation
+library(tidyr)       # reshaping data frame
+library(lubridate)   # date conversion and manipulation
+library(wordcloud2)  # html widget for wordcloud
+library(DT)          # html widget for table
+library(data.table)  # fast file reading using data.table::fread
+library(highcharter) # html widget for charting
+#library(treemap)     # treemap
+library(viridisLite) # required for highchart on treemap
+library(RColorBrewer)
+
+setwd('./')          #default to source file directory
+items.df        = fread('./data/items.df',stringsAsFactors = T)
+oil.df          = fread('./data/oil_2013.csv', stringsAsFactors = T)
+stores.df       = fread('./data/stores.csv', stringsAsFactors = T)
+transactions.df = fread('./data/transactions_2013.csv', stringsAsFactors = T)
+holidays.df     = fread('./data/holidays_2013.csv', stringsAsFactors = T)
+#train.df        = fread('./data/train_2013.csv', stringsAsFactors = T, colClasses = c(date='Date'))  # not required, as we had prepared the aggregation files
+
+### recoding
+transactions.df$date = ymd(transactions.df$date)
+
+### data preparation for Stores chapter - vikas
+###
+states.code.df   = fread('./data/state-postalcode.csv', stringsAsFactors = T)
+city.location.df = fread('./data/city.lon.csv', stringsAsFactors = T)
+
+stores.by.state = 
+  stores.df %>% count(state) %>%
+  left_join(states.code.df, by="state")
+
+state.transactions =
+  transactions.df %>% 
+  left_join(stores.df, by = "store_nbr") %>% 
+  group_by(state) %>% 
+  summarize( 
+    n_trans = sum(transactions)
+    ) %>%
+  left_join(states.code.df, by="state")
+
+store_trans.df = fread('./data/store_trans_2013.csv')
+store_trans.df$date = ymd(store_trans.df$date)
+
+store_by_trans.df = store_trans.df %>% group_by(store_nbr) %>% 
+    summarize(t_trans = sum(t_trans)) %>%
+    arrange(store_nbr)
+
+### data preparation for Product Items - yong
+###
+states.summary = stores.df %>% group_by(state) %>% 
+  mutate(cities=paste(unique(city), collapse = " - ")) %>% 
+  summarize(n_stores=n(), n_cities=n_distinct(city), cities=max(cities)) %>% 
+  left_join(state.transactions) %>%
+  arrange(-n_stores)
+
+#family.freq = items.df %>% count(family) %>% arrange(desc(n))
+
+# products and its total trans, comment out, already preloaded
+#item.trans = train.df %>% group_by(item_nbr) %>% summarize(t_sales=sum(unit_sales))
+
+# accumulated total sales by family, preloaded
+#items.df = left_join(items.df, item.trans) %>% 
+#            select(item_nbr, family, t_sales) %>% 
+#            na.omit()  ## there are 2000 items without transactions, filter them out
+
+# accumulated total sales by family
+families.df = items.df %>% group_by(family) %>% 
+  summarize(
+    n_items = length(unique(item_nbr)),
+    t_sales = sum(t_sales)
+  ) %>%
+  arrange(desc(t_sales))
+
+## data preparatino for Forecast - SL
+#train_set.df = fread('./data/train_set_2013.csv', stringsAsFactors = T)
+#train_set.df$date = ymd(train_set.df$date)
+load(file='data/coefs') # linear model coefs for prediction
+```
+
+
+# Products {data-orientation=rows}
+
+## Row 1 {data-height="12%"}
+
+### Logo {.no-title data-width=160}
+
+![](img/favorita_logo.jpg)
+
+### Total Families
+
+```{r families-valuebox}
+flexdashboard::renderValueBox({
+  total_families = nrow(families.df)
+  flexdashboard::valueBox( value=total_families, icon = "fa-bar-chart", color='info')
+})
+```
+
+### Total Products
+
+```{r products-valuebox}
+flexdashboard::renderValueBox({
+  total_items = nrow(items.df)
+  flexdashboard::valueBox( value=total_items, icon = "fa-bar-chart", color='info')
+})
+```
+
+### Total Sales (Units)
+
+```{r t_sales-valuebox}
+flexdashboard::renderValueBox({
+  txt = format(sum(items.df$t_sales), digits=2,big.mark=",", nsmall=0, scientific = F)
+  flexdashboard::valueBox( txt, icon = "fa-bar-chart", color='info')
+})
+```
+
+## Row 2 {data-height="88%"}
+
+### Family List {data-width="25%" .colored_grey}
+
+```{r families-table}
+df = families.df
+
+output$families =
+  renderDataTable({
+    datatable(df, rownames = FALSE, 
+              options = list(bPaginate = FALSE,dom = 't',scrollY="65vh")) %>%
+      formatRound('t_sales',0)
+  },server = FALSE)
+
+dataTableOutput("families")
+```
+
+### Item List {data-width="25%"}
+
+```{r item-table }
+output$items =
+  DT::renderDataTable({
+    
+    selected_families = families.df$family[input$families_rows_selected]
+    if (length(selected_families)==0)
+      df = items.df %>% arrange(desc(t_sales))
+    else
+      df = items.df %>% filter (family %in% selected_families) %>% arrange(desc(t_sales))
+    
+    datatable(df, rownames = FALSE, 
+                  options = list(
+                    bPaginate = FALSE,
+                    scrollY = "65vh",
+                    dom = 't'
+                  )) %>% formatRound('t_sales',0)
+
+  },server = FALSE)
+
+dataTableOutput("items")
+```
+
+### Best Sellers (Top 250) {data-width="50%"}
+
+```{r}
+#renderPlot({
+  #selected_families = families.df$family[input$families_rows_selected]
+  #if (length(selected_families)==0)
+  #  df = items.df %>% 
+  #        arrange(desc(t_sales)) %>% 
+  #        top_n(n=250)
+  #else
+  #  df = items.df %>% filter (family %in% selected_families) %>%
+  #        arrange(desc(t_sales)) %>% 
+  #        top_n(n=250)
+renderHighchart({
+
+  df = items.df %>% 
+       arrange(desc(t_sales)) %>%
+       top_n(n=250)
+  
+  hctreemap2(df,
+             group_vars = c("family","item_nbr"),
+             size_var ="t_sales",
+             #color_var = 'GNI',
+             layoutAlgorithm = "squarified",
+             levelIsConstant = FALSE,
+             levels = list(
+                list(level = 1, dataLabels = list(enabled = TRUE)),
+                list(level = 2, dataLabels = list(enabled = FALSE)),
+                list(level = 3, dataLabels = list(enabled = FALSE))
+            )) %>% 
+            hc_colorAxis(minColor = brewer.pal(7, "Greens")[1],
+               maxColor = brewer.pal(7, "Greens")[7]) %>% 
+            hc_tooltip(pointFormat = "<b>{point.name}</b>:<br>
+                            Pop: {point.value:,.0f}<br>
+                            GNI: {point.colorValue:,.0f}")
+})
+```
+
+# Transactions {data-orientation=rows}
+
+## Row 1 {data-height="50%"}
+
+### Transactions vs Oil Price
+
+```{r oil-prices}
+trans.df <- transactions.df %>%
+  mutate(date = ymd(date),
+         store_nbr = as.factor(store_nbr))
+
+oiltrans.df <- oil.df %>%
+  mutate(date = ymd(date))
+
+foo <- trans.df %>%
+  group_by(date) %>%
+  summarise(trans = sum(transactions))
+
+oil_back <- oiltrans.df %>%
+    filter(date > min(foo$date))
+
+oil_back <- oil_back %>%
+    mutate(oilprice = ( min(foo$trans, na.rm = TRUE) +
+      (dcoilwtico-min(dcoilwtico, na.rm = TRUE))/(max(dcoilwtico, na.rm = TRUE) - min(dcoilwtico, na.rm = TRUE)) *
+        (max(foo$trans, na.rm = TRUE) - min(foo$trans, na.rm = TRUE)) ))
+
+renderPlot({
+foo %>%
+  ggplot(aes(date, trans)) +
+  geom_line() +
+  geom_line(data = oil_back, aes(date, oilprice), color = "blue") +
+  ggtitle("Total transactions (black) with oilprice (blue)") +
+  theme(axis.text=element_text(size=16),
+        axis.title=element_text(size=18,face="bold"))
+})
+```
+
+## Row 2 {data-height="50%" .no-title}
+
+### Monthly Transactions
+
+```{r monthly-trans}
+#rename transactions.df
+merge_trans <- transactions.df
+
+#Format training data
+merge_trans <- merge_trans %>% 
+  mutate(
+    date = ymd(date),
+    store_nbr = as.factor(store_nbr),
+    weekday = wday(as.Date(date,'%y-%m-%d')),
+    weekday = as.factor(weekday)
+  )
+
+#separate 'date' to c(year, month, day)
+merge_trans <- merge_trans %>% separate(date, c("year", "month", "day"))
+
+#select variables for merge_trans
+merge_trans <- merge_trans %>%
+  select(transactions, year, month, day, store_nbr, weekday)
+
+#plot transactions over time
+renderPlot({
+merge_trans %>% ggplot(aes(month, transactions, fill = month)) +
+  geom_boxplot() + 
+  ggtitle("Boxplots of Transactions by Month") +
+  theme(axis.text=element_text(size=16),
+        axis.title=element_text(size=18,face="bold"),
+        legend.position="none")
+})
+```
+
+### Weekly Transactions
+
+```{r weekly-trans}
+#transactions over weekday
+renderPlot({
+  merge_trans %>% 
+    ggplot(aes(weekday, transactions, fill = weekday)) +
+    geom_boxplot() +
+    ggtitle("Boxplots of Transactions by Day") +
+    theme(axis.text=element_text(size=16),
+          axis.title=element_text(size=18,face="bold"),
+          legend.position="none")
+})
+```
+
+
+# Stores {data-orientation=columns}
+
+## Column 1 
+
+### Total States / Stores
+
+```{r stores-valuebox}
+flexdashboard::renderValueBox({
+  total_states = nrow(states.summary)
+  total_stores = nrow(stores.df)
+  value_text = paste(total_states, total_stores, sep = " / ")
+  flexdashboard::valueBox( value=value_text, icon = "fa-bar-chart", color='orange')
+})
+
+```
+
+### Stores Table
+
+```{r stores-table}
+## state list
+output$states =  renderDataTable({
+  datatable(states.summary[,c('state','n_trans','n_stores','n_cities','cities')], 
+      rownames = FALSE,
+      options=list(bPaginate=FALSE, dom = 't', scrollY='68vh')) %>%
+  formatStyle('n_trans',
+    background = styleColorBar(range(states.summary$n_trans, na.rm=TRUE), 'lightblue'),
+    backgroundSize = '98% 88%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+  ) %>%
+  formatRound('n_trans',0)
+},server = FALSE)
+
+
+## store list
+output$stores =  renderDataTable({
+  df = store_by_trans.df
+  #%>% group_by(store_nbr) %>% 
+  #  summarize(t_trans = sum(t_trans)) %>%
+  #  arrange(store_nbr)
+    
+  datatable(df, rownames = FALSE, 
+    options=list(bPaginate=FALSE, dom = 't', scrollY='68vh')) %>%
+    #formatStyle(columns = "store_nbr", target = "cell", backgroundColor = "#F7080880") %>%
+  formatStyle('t_trans',
+    background = styleColorBar(range(df$t_trans, na.rm=TRUE), 'lightgreen'),
+    backgroundSize = '98% 88%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+  ) %>%
+  formatRound('t_trans',0)
+},server = FALSE)
+
+## render on page
+fluidRow(
+   column(8, dataTableOutput('states')),
+   column(4, dataTableOutput('stores'))
+)
+``` 
+
+
+## Column 2 {.tabset}
+
+### Transactions by State
+
+```{r state-trans}
+label_data_trans <- transactions.df %>% group_by(store_nbr) %>% summarize(total = sum(transactions)) %>% as.data.frame()
+label_data_trans$store_name = paste('Store ', label_data_trans$store_nbr )
+label_data_trans <- label_data_trans %>% left_join(stores.df, by = "store_nbr")
+
+empty_bar=1
+to_add = data.frame( matrix(NA, empty_bar*nlevels(label_data_trans$state), ncol(label_data_trans)) )
+colnames(to_add) = colnames(label_data_trans)
+to_add$state=rep(levels(label_data_trans$state), each=empty_bar)
+label_data_trans=rbind(label_data_trans, to_add)
+
+label_data_trans=label_data_trans %>% arrange(state, total)
+label_data_trans$id=seq(1, nrow(label_data_trans))
+
+number_of_bar=nrow(label_data_trans)
+angle= 180 - 360 * (label_data_trans$id-0.5) /number_of_bar
+
+label_data_trans$hjust<-ifelse( angle < -90, 1, ifelse( angle >90, 1,0))
+label_data_trans$angle<-ifelse(angle < -90, angle+180, ifelse( angle >90, angle+180,angle))
+
+# prepare a data frame for base lines
+base_data=label_data_trans %>% 
+  group_by(state) %>% 
+  summarize(start=min(id), end=max(id) - empty_bar) %>% 
+  rowwise() %>% 
+  mutate(title=mean(c(start, end)))
+
+p = ggplot(label_data_trans, aes(x=as.factor(id), y=total, fill=state)) +     
+  geom_bar(aes(x=as.factor(id), y=total, fill=state), stat="identity", alpha=0.5) +
+  ylim(-300000,1500000) +
+  theme_minimal() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "right",
+    legend.text = element_text(size=4),
+    #legend.key.size = 1,
+    plot.margin = unit(rep(-1,4), "cm")
+  )+
+  coord_polar(start = 50000) +
+  geom_text(data=label_data_trans, aes(x=id, y=total, label=store_name, hjust=hjust), color="black", fontface="bold",alpha=0.6, size=2, angle= label_data_trans$angle, inherit.aes = FALSE ) +
+    # Add base line information
+  geom_segment(data=base_data, aes(x = start, y = -50000, xend = end, yend = -50000), colour = "black", alpha=0.8, size=0.5 , inherit.aes = FALSE )  
+
+p
+```
+
+### Transactions by Volume
+
+```{r trans-volume}
+label_data_trans <- transactions.df %>% group_by(store_nbr) %>% summarize(total = sum(transactions)) %>% as.data.frame()
+label_data_trans$store_name = paste('Store ', label_data_trans$store_nbr )
+label_data_trans <- label_data_trans %>% left_join(stores.df, by = "store_nbr")
+#label_data_trans
+
+label_data_trans=label_data_trans %>% arrange(total)
+label_data_trans$id=seq(1, nrow(label_data_trans))
+#label_data_trans
+
+number_of_bar=nrow(label_data_trans)
+angle= 180 - 360 * (label_data_trans$id-0.5) /number_of_bar
+
+label_data_trans$hjust<-ifelse( angle < -90, 1, ifelse( angle >90, 1,0))
+label_data_trans$angle<-ifelse(angle < -90, angle+180, ifelse( angle >90, angle+180,angle))
+#label_data_trans
+
+# prepare a data frame for base lines
+base_data=label_data_trans %>% 
+  group_by(state) %>% 
+  summarize(start=min(id), end=max(id) - empty_bar) %>% 
+  rowwise() %>% 
+  mutate(title=mean(c(start, end)))
+
+#base_data
+
+p=ggplot(label_data_trans, aes(x=as.factor(id), y=total, fill=state)) +     
+  geom_bar(aes(x=as.factor(id), y=total, fill=state), stat="identity", alpha=0.5) +
+  ylim(-300000,1500000) +
+  theme_minimal() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "right",
+    legend.text = element_text(size=4),
+    #legend.key.size = 1,
+    plot.margin = unit(rep(-1,4), "cm")
+  )+
+  coord_polar(start = 50000) +
+  geom_text(data=label_data_trans, aes(x=id, y=total, label=store_name, hjust=hjust), color="black", fontface="bold",alpha=0.6, size=2, angle= label_data_trans$angle, inherit.aes = FALSE ) 
+
+p
+```
+    
+
+### Stores Map
+
+```{r stores-map}
+renderHighchart({
+hcmap("https://code.highcharts.com/mapdata/countries/ec/ec-all", 
+      data = stores.by.state, 
+      value = "n",
+      joinBy = c("postal-code", "postalcode"), 
+      name = "Total Stores",
+      dataLabels = list(enabled = TRUE, format = '{point.name}'),
+      borderColor = "#000000", borderWidth = 0.2,
+      tooltip = list(valueDecimals = 0)) %>%
+  #hc_colorAxis(stops = colstops) %>%
+  hc_mapNavigation(enabled = TRUE) %>%
+  hc_legend(title=list(text="Total Stores"))
+})
+```
+
+### Transactions Map
+
+```{r trans-map}
+city.location.df$color = 'red'
+renderHighchart({
+  hcmap("https://code.highcharts.com/mapdata/countries/ec/ec-all", 
+      data = state.transactions, 
+      value = "n_trans",
+      joinBy = c("postal-code", "postalcode"), name = "Total Transactions",
+      dataLabels = list(enabled = TRUE, format = '{point.name}'),
+      borderColor = "#000000", borderWidth = 0.2,
+      tooltip = list(valueDecimals = 0)) %>%
+    #hc_colorAxis(stops = colstops) %>%
+    hc_add_series(data = city.location.df, type = "mapbubble", name = "Stores in City", maxSize = '10%') %>% 
+    hc_mapNavigation(enabled = TRUE) %>%
+    hc_legend(title=list(text="Total Transactions"))
+})
+```
+
+### Store Comparison
+
+```{r store-compare2}
+renderHighchart({
+    selected_stores = store_by_trans.df$store_nbr[input$stores_rows_selected]
+    if (length(selected_stores)==0)
+      df = store_trans.df
+    else
+      df = store_trans.df %>% filter (store_nbr %in% selected_stores)
+        
+    df %>% 
+      hchart(., 
+        type = "line", 
+        hcaes(x = date, y = t_trans, group = store_nbr)
+      ) %>% 
+      hc_yAxis(
+        opposite = TRUE,
+       labels = list(format = "{value}")
+      ) %>% 
+      hc_tooltip(pointFormat = '{point.x:%Y-%m-%d} <br> store: {series.name} <br> trans: {point.y}') %>%
+      hc_title(text = "Store Performance") %>%
+      hc_add_theme(hc_theme_darkunica())
+})
+```
+
+# Forecast {data-orientation=columns}
+
+```{r build-prediction}
+predicted.df = reactive({
+  # return NULL if date from is > date to
+  if (input$date_range[1] < input$date_range[2]) {
+    dates_vector = seq(as.Date(input$date_range[1]),as.Date(input$date_range[2]),by='days')
+    df = data.frame(
+      store_nbr = as.integer(input$select_store),
+      item_nbr = as.integer(input$select_item),
+      date     = dates_vector
+    )
+    df$total_sales = 
+      coefs['store_nbr']*df$store_nbr + 
+      coefs['item_nbr']*df$item_nbr + 
+      coefs['date']*as.integer(df$date) + 
+      coefs['(Intercept)']
+  } else {
+      df = NULL
+  }
+  df   # return df
+})
+```
+
+```{r}
+## construct traiing data
+#train_set.df = train.df %>%
+#  group_by(store_nbr, item_nbr, date) %>%
+#  summarize(total_sales = sum(unit_sales))
+
+## build the model
+#fit = lm(total_sales ~ store_nbr + item_nbr + date, data=train_set.df)
+```
+
+## Column 1
+
+### Predicted Data
+
+```{r predict-data}
+DT::renderDataTable({
+  df = predicted.df()
+  DT::datatable(df, 
+                options = list(
+                bPaginate = FALSE,
+                scrollY = "80vh",
+                dom = 't'))
+})
+```
+
+## Column 2
+
+### Total Sales Predicted
+
+```{r total-predicted}
+flexdashboard::renderValueBox({
+  df = predicted.df()
+  value_text = formatC(sum(df$total_sales),digits=0,format="f")
+  flexdashboard::valueBox( value=value_text, icon = "fa-bar-chart", color='warning')
+})
+```
+
+### Sales Estimation Over Time
+
+```{r predicted-chart}
+renderPlot({
+  df = predicted.df()
+  if (!is.null(df)) {
+    ggplot(df, aes(x=date, y=total_sales)) + geom_bar(stat='identity') +  
+    labs(title='Total Sales', x='Dates', y='Sales') +
+    theme(axis.text.x  = element_text (angle = (90), hjust = 1, vjust = 0.5))
+  }
+})
+```
+
+## Selection {.sidebar}
+
+```{r sidebar}
+selectInput("select_store", h4("Store Number"),stores.df$store_nbr)
+selectInput("select_item", h4("Item Number"),items.df$item_nbr)
+dateRangeInput("date_range", h4("Date Range"))  
+``` 

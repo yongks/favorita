@@ -1,0 +1,52 @@
+date,type,locale,locale_name,description,transferred
+2013-01-01,Holiday,National,Ecuador,Primer dia del ano,FALSE
+2013-01-05,Work Day,National,Ecuador,Recupero puente Navidad,FALSE
+2013-01-12,Work Day,National,Ecuador,Recupero puente primer dia del ano,FALSE
+2013-02-11,Holiday,National,Ecuador,Carnaval,FALSE
+2013-02-12,Holiday,National,Ecuador,Carnaval,FALSE
+2013-03-02,Holiday,Local,Manta,Fundacion de Manta,FALSE
+2013-04-01,Holiday,Regional,Cotopaxi,Provincializacion de Cotopaxi,FALSE
+2013-04-12,Holiday,Local,Cuenca,Fundacion de Cuenca,FALSE
+2013-04-14,Holiday,Local,Libertad,Cantonizacion de Libertad,FALSE
+2013-04-21,Holiday,Local,Riobamba,Cantonizacion de Riobamba,FALSE
+2013-04-29,Holiday,National,Ecuador,Viernes Santo,FALSE
+2013-05-01,Holiday,National,Ecuador,Dia del Trabajo,FALSE
+2013-05-11,Additional,National,Ecuador,Dia de la Madre-1,FALSE
+2013-05-12,Holiday,Local,Puyo,Cantonizacion del Puyo,FALSE
+2013-05-12,Event,National,Ecuador,Dia de la Madre,FALSE
+2013-05-24,Holiday,National,Ecuador,Batalla de Pichincha,FALSE
+2013-06-23,Holiday,Local,Guaranda,Cantonizacion de Guaranda,FALSE
+2013-06-25,Holiday,Regional,Imbabura,Provincializacion de Imbabura,FALSE
+2013-06-25,Holiday,Local,Machala,Fundacion de Machala,FALSE
+2013-06-25,Holiday,Local,Latacunga,Cantonizacion de Latacunga,FALSE
+2013-07-03,Holiday,Local,El Carmen,Cantonizacion de El Carmen,FALSE
+2013-07-03,Holiday,Local,Santo Domingo,Fundacion de Santo Domingo,FALSE
+2013-07-23,Holiday,Local,Cayambe,Cantonizacion de Cayambe,FALSE
+2013-07-24,Additional,Local,Guayaquil,Fundacion de Guayaquil-1,FALSE
+2013-07-25,Holiday,Local,Guayaquil,Fundacion de Guayaquil,FALSE
+2013-08-05,Holiday,Local,Esmeraldas,Fundacion de Esmeraldas,FALSE
+2013-08-10,Holiday,National,Ecuador,Primer Grito de Independencia,FALSE
+2013-08-15,Holiday,Local,Riobamba,Fundacion de Riobamba,FALSE
+2013-08-24,Holiday,Local,Ambato,Fundacion de Ambato,FALSE
+2013-09-28,Holiday,Local,Ibarra,Fundacion de Ibarra,FALSE
+2013-10-07,Holiday,Local,Quevedo,Cantonizacion de Quevedo,FALSE
+2013-10-09,Holiday,National,Ecuador,Independencia de Guayaquil,TRUE
+2013-10-11,Transfer,National,Ecuador,Traslado Independencia de Guayaquil,FALSE
+2013-11-02,Holiday,National,Ecuador,Dia de Difuntos,FALSE
+2013-11-03,Holiday,National,Ecuador,Independencia de Cuenca,FALSE
+2013-11-06,Holiday,Regional,Santo Domingo de los Tsachilas,Provincializacion de Santo Domingo,FALSE
+2013-11-07,Holiday,Regional,Santa Elena,Provincializacion Santa Elena,FALSE
+2013-11-10,Holiday,Local,Guaranda,Independencia de Guaranda,FALSE
+2013-11-11,Holiday,Local,Latacunga,Independencia de Latacunga,FALSE
+2013-11-12,Holiday,Local,Ambato,Independencia de Ambato,FALSE
+2013-12-05,Additional,Local,Quito,Fundacion de Quito-1,FALSE
+2013-12-06,Holiday,Local,Quito,Fundacion de Quito,FALSE
+2013-12-08,Holiday,Local,Loja,Fundacion de Loja,FALSE
+2013-12-21,Additional,National,Ecuador,Navidad-4,FALSE
+2013-12-22,Additional,National,Ecuador,Navidad-3,FALSE
+2013-12-22,Holiday,Local,Salinas,Cantonizacion de Salinas,FALSE
+2013-12-23,Additional,National,Ecuador,Navidad-2,FALSE
+2013-12-24,Additional,National,Ecuador,Navidad-1,FALSE
+2013-12-25,Holiday,National,Ecuador,Navidad,FALSE
+2013-12-26,Additional,National,Ecuador,Navidad+1,FALSE
+2013-12-31,Additional,National,Ecuador,Primer dia del ano-1,FALSE
